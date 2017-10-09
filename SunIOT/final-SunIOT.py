@@ -28,6 +28,13 @@ LED = 4
 #GPIO.setup(LED, GPIO.OUT, initial=0)
 sensor = SDL_Pi_SI1145.SDL_Pi_SI1145()
 
+ina3221 = SDL_Pi_INA3221.SDL_Pi_INA3221(addr=0x40)
+
+LIPO_BATTERY_CHANNEL = 1
+SOLAR_CELL_CHANNEL   = 2
+OUTPUT_CHANNEL       = 3
+
+
 #FUNCTIONS
 
 def readSunLight():
@@ -38,11 +45,74 @@ def readSunLight():
         UV = sensor.readUV()
         uvIndex = UV / 100.0
         
+        print "Sending %s" % payload
+        print '		Vis:             ' + str(vis)
+        print '		IR:              ' + str(IR)
+        print '		UV Index:        ' + str(uvIndex)
+	returnValue = []
+	returnValue.append(vis)
+	returnValue.append(IR)
+	returnValue.append(uvIndex)
+	return returnValue
+
+
+def readSunControl():
+  	shuntvoltage1 = 0
+  	busvoltage1   = 0
+  	current_mA1   = 0
+  	loadvoltage1  = 0
+
+
+  	busvoltage1 = ina3221.getBusVoltage_V(LIPO_BATTERY_CHANNEL)
+  	shuntvoltage1 = ina3221.getShuntVoltage_mV(LIPO_BATTERY_CHANNEL)
+  	# minus is to get the "sense" right.   - means the battery is charging, + that it is discharging
+  	current_mA1 = ina3221.getCurrent_mA(LIPO_BATTERY_CHANNEL)  
+
+  	loadvoltage1 = busvoltage1 + (shuntvoltage1 / 1000)
+  
+  	print "LIPO_Battery Bus Voltage: %3.2f V " % busvoltage1
+  	print "LIPO_Battery Shunt Voltage: %3.2f mV " % shuntvoltage1
+  	print "LIPO_Battery Load Voltage:  %3.2f V" % loadvoltage1
+  	print "LIPO_Battery Current 1:  %3.2f mA" % current_mA1
+  	print
+
+  	shuntvoltage2 = 0
+  	busvoltage2 = 0
+  	current_mA2 = 0
+  	loadvoltage2 = 0
+
+  	busvoltage2 = ina3221.getBusVoltage_V(SOLAR_CELL_CHANNEL)
+  	shuntvoltage2 = ina3221.getShuntVoltage_mV(SOLAR_CELL_CHANNEL)
+  	current_mA2 = -ina3221.getCurrent_mA(SOLAR_CELL_CHANNEL)
+  	loadvoltage2 = busvoltage2 + (shuntvoltage2 / 1000)
+  
+  	print "Solar Cell Bus Voltage 2:  %3.2f V " % busvoltage2
+  	print "Solar Cell Shunt Voltage 2: %3.2f mV " % shuntvoltage2
+  	print "Solar Cell Load Voltage 2:  %3.2f V" % loadvoltage2
+  	print "Solar Cell Current 2:  %3.2f mA" % current_mA2
+  	print 
+
+  	shuntvoltage3 = 0
+  	busvoltage3 = 0
+  	current_mA3 = 0
+  	loadvoltage3 = 0
+
+  	busvoltage3 = ina3221.getBusVoltage_V(OUTPUT_CHANNEL)
+  	shuntvoltage3 = ina3221.getShuntVoltage_mV(OUTPUT_CHANNEL)
+  	current_mA3 = ina3221.getCurrent_mA(OUTPUT_CHANNEL)
+  	loadvoltage3 = busvoltage3 + (shuntvoltage3 / 1000)
+  
+  	print "Output Bus Voltage 3:  %3.2f V " % busvoltage3
+  	print "Output Shunt Voltage 3: %3.2f mV " % shuntvoltage3
+  	print "Output Load Voltage 3:  %3.2f V" % loadvoltage3
+  	print "Output Current 3:  %3.2f mA" % current_mA3
+
+def sendMSG:
         #MQTT message.
         payload=json.dumps([{'Data':{'Date':date,'Location':'Rear Office','VisualLight':vis,'Infared':IR,'UV':UV}}], separators=(',',':'))
-
+        
+        #Address of MQTT server
         broker_address="192.168.0.158"
-        #broker_address="iot.eclipse.org" #use external broker
 
         #create new instance
         client = mqtt.Client("P2")
@@ -55,16 +125,8 @@ def readSunLight():
  
         client.disconnect()
 
-        print "Sending %s" % payload
-        print '		Vis:             ' + str(vis)
-        print '		IR:              ' + str(IR)
-        print '		UV Index:        ' + str(uvIndex)
-	returnValue = []
-	returnValue.append(vis)
-	returnValue.append(IR)
-	returnValue.append(uvIndex)
-	return returnValue
 
+#MAIN CODE
 
 print "-----------------"
 print "SunIOT"
@@ -74,14 +136,6 @@ print "-----------------"
 print ""
 
 
-	# DEBUG Mode - because the functions run in a separate thread, debugging can be difficult inside the functions.
-	# we run the functions here to test them.
-	#tick()
-	#print readSunLight()
-	
-
-	# IOT Jobs are scheduled here (more coming next issue) 
-	
 while True:
     readSunLight()
     time.sleep(10)
