@@ -9,14 +9,15 @@
 
 import sys
 import os
-sys.path.append('/git/SunIOT/SDL_Pi_SI1145');
+sys.path.append('/root/Suniot/SunIOT/SDL_Pi_SI1145');
+sys.path.append('/root/Suniot/SunIOT/SDL_Pi_INA3221');
 import time
 import RPi.GPIO as GPIO
-#pip install paho-mqtt
-import paho.mqtt.client as mqtt
+import paho.mqtt.client as mqtt                         #pip install paho-mqtt
 import datetime
-import SDL_Pi_SI1145
-
+import SDL_Pi_SI1145                                    #for light sensor
+import SDL_Pi_INA3221                                   #for SunControl Board
+import json
 
 
 #VARIABLES
@@ -24,7 +25,7 @@ import SDL_Pi_SI1145
 #set up GPIO using BCM numbering
 GPIO.setmode(GPIO.BCM)
 LED = 4
-GPIO.setup(LED, GPIO.OUT, initial=0)
+#GPIO.setup(LED, GPIO.OUT, initial=0)
 sensor = SDL_Pi_SI1145.SDL_Pi_SI1145()
 
 #FUNCTIONS
@@ -38,7 +39,7 @@ def readSunLight():
         uvIndex = UV / 100.0
         
         #MQTT message.
-        payload="%s,office,%d,%d,%d" % (date, vis, IR, UV)
+        payload=json.dumps([{'Data':{'Date':date,'Location':'Rear Office','VisualLight':vis,'Infared':IR,'UV':UV}}], separators=(',',':'))
 
         broker_address="192.168.0.158"
         #broker_address="iot.eclipse.org" #use external broker
@@ -54,7 +55,7 @@ def readSunLight():
  
         client.disconnect()
 
-        print "sending:  %s,/danshouse/office,%d,%d,%d" % (date, vis, IR, UV)
+        print "Sending %s" % payload
         print '		Vis:             ' + str(vis)
         print '		IR:              ' + str(IR)
         print '		UV Index:        ' + str(uvIndex)
@@ -83,4 +84,4 @@ print ""
 	
 while True:
     readSunLight()
-    time.sleep(30)
+    time.sleep(10)
