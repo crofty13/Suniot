@@ -22,6 +22,8 @@ import json
 
 #VARIABLES
 
+topic = '/solardata/office'
+
 #set up GPIO using BCM numbering
 GPIO.setmode(GPIO.BCM)
 LED = 4
@@ -38,14 +40,13 @@ OUTPUT_CHANNEL       = 3
 #FUNCTIONS
 
 def readSunLight():
-        date = str(datetime.datetime.now())
 
         vis = sensor.readVisible()
         IR = sensor.readIR()
         UV = sensor.readUV()
         uvIndex = UV / 100.0
         
-        print "Sending %s" % payload
+        ##print "Sending %s" % payload
         print '		Vis:             ' + str(vis)
         print '		IR:              ' + str(IR)
         print '		UV Index:        ' + str(uvIndex)
@@ -53,7 +54,7 @@ def readSunLight():
 	returnValue.append(vis)
 	returnValue.append(IR)
 	returnValue.append(uvIndex)
-	return returnValue
+        return returnValue
 
 
 def readSunControl():
@@ -107,21 +108,35 @@ def readSunControl():
   	print "Output Load Voltage 3:  %3.2f V" % loadvoltage3
   	print "Output Current 3:  %3.2f mA" % current_mA3
 
-def sendMSG:
+        #Taking only Solar values at the mo.
+        returnValue = []
+        returnValue.append(shuntvoltage2)
+        returnValue.append(busvoltage2)
+        returnValue.append(current_mA2)
+        returnValue.append(loadvoltage2)
+        return returnValue
+
+def sendMSG(payload):
+        date = str(datetime.datetime.now())
         #MQTT message.
-        payload=json.dumps([{'Data':{'Date':date,'Location':'Rear Office','VisualLight':vis,'Infared':IR,'UV':UV}}], separators=(',',':'))
-        
+    
+        #finalpayload= json.dumps([{'Data':{'Date':date,'Location':'Rear Office','VisualLight':vis,'Infared':IR,'UV':UV}}], separators=(',',':'))
+        payload.insert( 0, date)
+
+        print "Final payload:"
+        print(str(payload))
+
         #Address of MQTT server
         broker_address="192.168.0.158"
 
         #create new instance
-        client = mqtt.Client("P2")
+        client = mqtt.Client("DansClientID2345755346")
 
         #create connection
         client.connect(broker_address)
 
         #Publish a message
-        client.publish(topic='danshouse/office',payload=payload,qos=0)
+        client.publish(topic=topic,payload=str(payload),qos=0)
  
         client.disconnect()
 
@@ -137,5 +152,25 @@ print ""
 
 
 while True:
-    readSunLight()
+    #Get Sunlight sensor data 
+    sunSensor = []
+    sunSensor = readSunLight()
+    print(sunSensor[1])
+
+    #Get Solar Panel and Battery data.
+    solarSensor = []
+    solarSensor = readSunControl()
+    print(solarSensor[1])
+
+    #payload
+    payload = sunSensor + solarSensor
+    print(payload)
+    
+    sendMSG(payload)
+
+
+
+
+
+
     time.sleep(10)
